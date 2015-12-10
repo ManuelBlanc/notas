@@ -29,6 +29,18 @@ svg {
 		&:hover { fill: @bar-color; }
 	}
 
+	.boxplot {
+		stroke-width: 2;
+		stroke: #000;
+		fill: #f5f5f5;
+		.median {
+			stroke-width: 4;
+		}
+		.whisker {
+			stroke-dasharray: 10,10;
+		}
+	}
+
 }
 
 #table-stats {

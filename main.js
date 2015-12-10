@@ -23,11 +23,10 @@ function analyze_grades(grades) {
 	info.h0_rechazo = 5 - jStat.studentt.inv(alpha, info.n-1) * (info.stdev / Math.sqrt(info.n))
 	info.h0 = info.mean < info.h0_rechazo;
 
-	info.histogram = d3.range(11).map(d3.functor(0));
-	grades.forEach(function(g) { console.log(g); ++info.histogram[Math.min(10, Math.floor(g+0.5))]; });
-	//console.log(info.histogram);
+	info.histogram = d3.range(21).map(function(i) { return { bucket: i/2, freq: 0 }; });
+	grades.forEach(function(g) { info.histogram[Math.floor(2*g+0.5)].freq++; });
 
-	info.gaussian = d3.range(-0.5, 10.6, 0.1)
+	info.gaussian = d3.range(-0.25, 10.5, 0.25)
 		.map(function(x) {
 			return [x, jStat.normal.pdf(x, info.mean, info.stdev)];
 		});
@@ -61,11 +60,11 @@ function BarChart(svg) {
 
 	var margin = this.margin = {top: 20, right: 20, bottom: 30, left: 40};
 	var width  = this.width = $(svg).parent().width() - this.margin.right - this.margin.left;
-	var height = this.height = 500;
+	var height = this.height = 400;
 
 	this.svg = d3.select(svg)
 		.attr("width",  width + margin.right + margin.left)
-		.attr("height", height + margin.top + margin.bottom);
+		.attr("height", height + margin.top + margin.bottom + 100);
 
 	var chart = this.chart = this.svg.append("g")
 		.attr("transform", "translate(" + margin.left + "," + margin.top + ")");
@@ -73,7 +72,7 @@ function BarChart(svg) {
 	// Escalas
 	this.scale = {
 		x: d3.scale.ordinal()
-			.domain(d3.range(0, 11, 1))
+			.domain(d3.range(0, 10.5, 0.5))
 			.rangeRoundBands([0, width], .05),
 		y: d3.scale.linear()
 			.domain([0, 10]) // Dominio temporal. El real se calcula con los datos despues
@@ -96,6 +95,16 @@ function BarChart(svg) {
 
 	// La gausiana (despues de las barras, antes de los EJES)
 	chart.append("g").attr("class", "bestfit").append("path");
+
+	// Candlestick
+	var boxG = chart.append("g").attr("class", "boxplot")
+		.attr("transform", "translate(0, " + (height+50) + ")");
+	boxG.append("rect").attr("class", "box");
+	boxG.append("line").attr("class", "median");
+	boxG.append("line").attr("class", "whisker left");
+	boxG.append("line").attr("class", "whisker right");
+	boxG.append("line").attr("class", "whisker-end left");
+	boxG.append("line").attr("class", "whisker-end right");
 
 
 	// Los ejes en si
@@ -147,13 +156,58 @@ BarChart.prototype.domain = function(max) {
 	});
 };
 
+BarChart.prototype.box = function(quartiles) {
+	var x = d3.scale.linear().domain([-0.25, 10.25]).range([0, this.width]);
+
+	var whisker = (quartiles[2]-quartiles[0])*0.25
+
+	this.chart.select("rect.box").transition().duration(1000)
+		.attr("x", x(quartiles[0]))
+		.attr("y", 0)
+		.attr("width", x(quartiles[2] - quartiles[0] - 0.25))
+		.attr("height", 50);
+	this.chart.select("line.median").transition().duration(1000)
+		.attr("x1", x(quartiles[1]))
+		.attr("y1", -4)
+		.attr("x2", x(quartiles[1]))
+		.attr("y2", 54)
+	this.chart.select("line.whisker.left").transition().duration(1000)
+		.attr({
+			x1: x(quartiles[0] - whisker),
+			y1: 25,
+			x2: x(quartiles[0]),
+			y2: 25,
+		});
+	this.chart.select("line.whisker-end.left").transition().duration(1000)
+		.attr({
+			x1: x(quartiles[0] - whisker),
+			y1: 12.5,
+			x2: x(quartiles[0] - whisker),
+			y2: 37.5,
+		});
+	this.chart.select("line.whisker.right").transition().duration(1000)
+		.attr({
+			x1: x(quartiles[2]),
+			y1: 25,
+			x2: x(quartiles[2] + whisker),
+			y2: 25,
+		});
+	this.chart.select("line.whisker-end.right").transition().duration(1000)
+		.attr({
+			x1: x(quartiles[2] + whisker),
+			y1: 12.5,
+			x2: x(quartiles[2] + whisker),
+			y2: 37.5,
+		})
+};
+
 BarChart.prototype.line = function(lineData, yMax) {
 
 	var width = this.width, height = this.height;
 
 	yMax = yMax !== undefined ? yMax : d3.max(lineData, function(d) { return d[1]; });
 
-	var x = d3.scale.linear().domain([-0.5, 10.5]).range([0, width]);
+	var x = d3.scale.linear().domain([-0.25, 10.25]).range([0, width]);
 	var y = d3.scale.linear().domain([0, yMax]).range([height, height*0.25]);
 
 	var line = d3.svg.line()
@@ -173,14 +227,14 @@ BarChart.prototype.bars = function(barData) {
 	bar.exit().remove();
 	bar.enter().append("rect").attr("class", "bar");
 	bar
-		.attr("x", function(d, i) { return x(i); })
+		.attr("x", function(d) { return x(d.bucket); })
 		.attr("width", x.rangeBand())
 		.attr("y", height)
 		.attr("height", 0)
 		.transition()
 			.duration(1000)
-			.attr("y", function(d) { return y(d); })
-			.attr("height", function(d) { return height - y(d); });
+			.attr("y", function(d) { return y(d.freq); })
+			.attr("height", function(d) { return height - y(d.freq); });
 };
 
 $(".uploader input:text").focus(function() {
@@ -228,9 +282,10 @@ $(function() { setTimeout(function() {
 
 			populate_table(grades, info);
 
-			graph.domain(d3.max(info.histogram));
+			graph.domain(d3.max(info.histogram, function(d) { return d.freq; }));
 			graph.bars(info.histogram);
 			graph.line(info.gaussian);
+			graph.box(info.quartiles);
 
 		});
 	});

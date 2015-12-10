@@ -156,10 +156,10 @@ BarChart.prototype.domain = function(max) {
 	});
 };
 
-BarChart.prototype.box = function(quartiles) {
+BarChart.prototype.box = function(quartiles, n) {
 	var x = d3.scale.linear().domain([-0.25, 10.25]).range([0, this.width]);
 
-	var whisker = (quartiles[2]-quartiles[0])*0.25
+	var whisker = (quartiles[2]-quartiles[0])*1.58 / Math.sqrt(n);
 
 	this.chart.select("rect.box").transition().duration(1000)
 		.attr("x", x(quartiles[0]))
@@ -285,7 +285,7 @@ $(function() { setTimeout(function() {
 			graph.domain(d3.max(info.histogram, function(d) { return d.freq; }));
 			graph.bars(info.histogram);
 			graph.line(info.gaussian);
-			graph.box(info.quartiles);
+			graph.box(info.quartiles, info.n);
 
 		});
 	});

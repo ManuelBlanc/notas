@@ -1,0 +1,10 @@
+{
+	"folders":
+	[
+		{
+			"follow_symlinks": true,
+			"name": "menedo.src",
+			"path": "_harp",
+		}
+	]
+}

@@ -48,10 +48,9 @@ function populate_table(grades, info) {
 	ul.selectAll("li").remove();
 	var li = ul.selectAll("li").data(grades);
 	li.enter()
-		.insert("li", ":first-child")
-		.attr("class", "list-group-item text-center");
-
-	li.text(grade_formatter);
+		.append("li")
+		.attr("class", "list-group-item text-center")
+		.text(grade_formatter);
 
 	d3.select("#table-stats table").selectAll(".data")
 		.datum(function() { return this.dataset; })
@@ -267,6 +266,23 @@ $(function() {
 
 	var graph = new BarChart($("svg")[0]);
 
+	function do_stuff(grades) {
+		var info = analyze_grades(grades);
+
+		populate_table(grades, info);
+
+		graph.domain(d3.max(info.histogram, function(d) { return d.freq; }));
+		graph.bars(info.histogram);
+		graph.line(info.gaussian);
+		graph.box(info);
+	}
+
+	var media = Math.max(2, Math.min(8, jStat.normal.sample(5, 1)));
+	var desve = 1+2*Math.random();
+	do_stuff(jStat.create(1, 20+Math.floor(50*Math.random()), function() {
+		return Math.max(0, Math.min(10, jStat.normal.sample(media, 2)));
+	})[0].sort(d3.descending));
+
 	$(".uploader input:file").change(function(evt) {
 
 		var file = evt.target.files[0];
@@ -289,15 +305,7 @@ $(function() {
 					throw new Error("Unrecognized type " + file.type);
 			}
 
-			var grades = gradeDict.map(function(d) { return parseFloat(d.nota); }).sort(d3.ascending);
-			var info = analyze_grades(grades);
-
-			populate_table(grades, info);
-
-			graph.domain(d3.max(info.histogram, function(d) { return d.freq; }));
-			graph.bars(info.histogram);
-			graph.line(info.gaussian);
-			graph.box(info);
+			do_stuff(gradeDict.map(function(d) { return parseFloat(d.nota); }).sort(d3.descending));
 
 		});
 	});

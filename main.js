@@ -18,6 +18,8 @@ function analyze_grades(grades) {
 	info.variance 	= jsg.variance();
 	info.stdev    	= jsg.stdev();
 
+	info.quartiles[1] = info.median;
+
 	// Is the mean above 5.0?
 	// H_0 : \mu > 5 (mean < \mu_0 * t_{n-1; alpha} * s / sqrt(n))
 	var alpha = 0.05;
@@ -29,8 +31,10 @@ function analyze_grades(grades) {
 
 	info.gaussian = d3.range(-0.25, 10.5, 0.25)
 		.map(function(x) {
-			return [x, jStat.normal.pdf(x, info.mean, info.stdev)];
+			return [x, info.n/info.stdev*jStat.normal.pdf(x, info.mean, info.stdev)];
 		});
+
+		console.log(info.gaussian);
 
 	return info;
 }
@@ -54,6 +58,15 @@ function populate_table(grades, info) {
 		.text(function(d) { return " " + d3.format(d.fmt)(info[d.info]); });
 }
 
+
+function tweenOpacity(from, to, duration) {
+	return function(selection) {
+		selection.style("opacity", from)
+			.transition("tweenOpacity")
+			.duration(duration || 1000)
+			.style("opacity", to);
+	};
+}
 
 // Inicializacion de la grafica
 //----------------------------------------------------------------
@@ -84,7 +97,7 @@ function BarChart(svg) {
 
 	// Controladores de los ejes
 	this.axis = {
-		x: d3.svg.axis().scale(this.scale.x).orient("bottom"),
+		x: d3.svg.axis().scale(this.scale.x).orient("bottom").tickFormat(d3.format(".1f")),
 		y: d3.svg.axis().scale(this.scale.y).orient("left"),
 	};
 
@@ -123,15 +136,9 @@ function BarChart(svg) {
 			.attr("dy", ".71em")
 			.style("text-anchor", "end")
 			.text("Frecuencia");
-}
 
-function tweenOpacity(from, to) {
-	return function(selection) {
-		selection.style("opacity", from)
-			.transition("tweenOpacity")
-			.duration(1000)
-			.style("opacity", to);
-	};
+	chart.select(".x.axis").call(tweenOpacity(0, 1, 500));
+	chart.select(".y.axis").call(tweenOpacity(0, 1, 500));
 }
 
 BarChart.prototype.domain = function(max) {
@@ -173,9 +180,9 @@ BarChart.prototype.box = function(info) {
 	this.chart.select("line.median").transition().duration(1000)
 		.attr({
 			x1: x(quartiles[1]),
-			y1: -5,
+			y1: 0,
 			x2: x(quartiles[1]),
-			y2: 55,
+			y2: 50,
 		});
 	this.chart.select("line.whisker.left").transition().duration(1000)
 		.attr({
@@ -207,18 +214,16 @@ BarChart.prototype.box = function(info) {
 		});
 };
 
-BarChart.prototype.line = function(lineData, yMax) {
+BarChart.prototype.line = function(lineData) {
 
 	var width = this.width, height = this.height;
 
-	yMax = yMax !== undefined ? yMax : d3.max(lineData, function(d) { return d[1]; });
-
 	var x = d3.scale.linear().domain([-0.25, 10.25]).range([0, width]);
-	var y = d3.scale.linear().domain([0, yMax]).range([height, 0]);
+	var y = this.scale.y;
 
 	var line = d3.svg.line()
 		.x(function(d) { return x(d[0]); })
-		.y(function(d) { return y(d[1]*2); });
+		.y(function(d) { return y(d[1]); });
 
 	this.chart.select(".bestfit").select("path").datum(lineData).attr("d", line);
 };
@@ -256,6 +261,8 @@ function read_file(file) {
 	});
 }
 
+// Timeout para evitar condicion de carrera (TODO: investigar esto)
+setTimeout(function() {
 $(function() {
 
 	var graph = new BarChart($("svg")[0]);
@@ -289,13 +296,14 @@ $(function() {
 
 			graph.domain(d3.max(info.histogram, function(d) { return d.freq; }));
 			graph.bars(info.histogram);
-			graph.line(info.gaussian, 1);
+			graph.line(info.gaussian);
 			graph.box(info);
 
 		});
 	});
 
 });
+}, 200);
 
 
 

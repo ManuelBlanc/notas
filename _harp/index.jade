@@ -49,14 +49,14 @@ html(lang='es' xmlns='http://www.w3.org/1999/xhtml')
 							h3.panel-title Estadisticos
 						table.table
 							tr
-								td.trh Media
+								td.trh Media (µ)
 								td.data(data-fmt='.2f' data-info='mean')
 							tr
-								td.trh Desviacion
+								td.trh Desviacion (σ)
 								td.data(data-fmt='.2f' data-info='stdev')
 							tr
-								td.trh N
-								td.data(data-fmt='i' data-info='n')
+								td.trh Mediana
+								td.data(data-fmt='.2f' data-info='median')
 							tr
 								td.trh Minimo
 								td.data(data-fmt='.2f' data-info='min')
@@ -64,8 +64,8 @@ html(lang='es' xmlns='http://www.w3.org/1999/xhtml')
 								td.trh Maximo
 								td.data(data-fmt='.2f' data-info='max')
 							tr
-								td.trh Mediana
-								td.data(data-fmt='.2f' data-info='median')
+								td.trh N
+								td.data(data-fmt='i' data-info='n')
 
 					.panel.panel-default#list-grades
 						.panel-heading

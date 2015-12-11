@@ -3,8 +3,8 @@
 	[
 		{
 			"follow_symlinks": true,
-			"name": "menedo.src",
-			"path": "_harp",
+			"name": "notas",
+			"path": ".",
 		}
 	]
 }

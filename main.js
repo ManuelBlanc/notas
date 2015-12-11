@@ -1,26 +1,27 @@
-"use strict";
+(function() { "use strict";
 
 // Analyze a list of grades using jStat
 function analyze_grades(grades) {
 	var info = {};
 
-	var gl = info._grades = jStat(grades);
+	var jsg = jStat(grades);
+	info.grades = grades;
 
 	// Basic descriptive statistics
 	info.n        	= grades.length;
-	info.min      	= gl.min();
-	info.max      	= gl.max();
-	info.mean     	= gl.mean();
-	info.median   	= gl.median();
-	info.quartiles	= gl.quartiles();
+	info.min      	= jsg.min();
+	info.max      	= jsg.max();
+	info.mean     	= jsg.mean();
+	info.median   	= jsg.median();
+	info.quartiles	= jsg.quartiles();
 	info.iqr      	= info.quartiles[2] - info.quartiles[0];
-	info.variance 	= gl.variance();
-	info.stdev    	= gl.stdev();
+	info.variance 	= jsg.variance();
+	info.stdev    	= jsg.stdev();
 
 	// Is the mean above 5.0?
 	// H_0 : \mu > 5 (mean < \mu_0 * t_{n-1; alpha} * s / sqrt(n))
-	var alpha = 0.05
-	info.h0_rechazo = 5 - jStat.studentt.inv(alpha, info.n-1) * (info.stdev / Math.sqrt(info.n))
+	var alpha = 0.05;
+	info.h0_rechazo = 5 - jStat.studentt.inv(alpha, info.n-1) * (info.stdev / Math.sqrt(info.n));
 	info.h0 = info.mean < info.h0_rechazo;
 
 	info.histogram = d3.range(21).map(function(i) { return { bucket: i/2, freq: 0 }; });
@@ -40,16 +41,16 @@ function populate_table(grades, info) {
 
 	var grade_formatter = d3.format(".1f");
 
-	var li = ul.selectAll("li").data(grades)
-	li.exit().remove();
+	ul.selectAll("li").remove();
+	var li = ul.selectAll("li").data(grades);
 	li.enter()
 		.insert("li", ":first-child")
-		.attr("class", "list-group-item text-center")
+		.attr("class", "list-group-item text-center");
 
-	li.text(grade_formatter)
+	li.text(grade_formatter);
 
-	var tab = d3.select("#table-stats").select("table");
-	var li = tab.selectAll(".data").datum(function() { return this.dataset; })
+	d3.select("#table-stats table").selectAll(".data")
+		.datum(function() { return this.dataset; })
 		.text(function(d) { return " " + d3.format(d.fmt)(info[d.info]); });
 }
 
@@ -73,7 +74,7 @@ function BarChart(svg) {
 	this.scale = {
 		x: d3.scale.ordinal()
 			.domain(d3.range(0, 10.5, 0.5))
-			.rangeRoundBands([0, width], .05),
+			.rangeRoundBands([0, width], 0.05),
 		y: d3.scale.linear()
 			.domain([0, 10]) // Dominio temporal. El real se calcula con los datos despues
 			.range([height, 0]),
@@ -122,8 +123,7 @@ function BarChart(svg) {
 			.attr("dy", ".71em")
 			.style("text-anchor", "end")
 			.text("Frecuencia");
-
-};
+}
 
 function tweenOpacity(from, to) {
 	return function(selection) {
@@ -156,49 +156,55 @@ BarChart.prototype.domain = function(max) {
 	});
 };
 
-BarChart.prototype.box = function(quartiles, n) {
+BarChart.prototype.box = function(info) {
 	var x = d3.scale.linear().domain([-0.25, 10.25]).range([0, this.width]);
 
-	var whisker = (quartiles[2]-quartiles[0])*1.58 / Math.sqrt(n);
+	var quartiles = info.quartiles;
+	var whisker_left  = Math.max(info.min, quartiles[0] - 1.5*info.iqr); // jStat.percentile(info.grades, 0.10);
+	var whisker_right = Math.min(info.max, quartiles[2] + 1.5*info.iqr); // jStat.percentile(info.grades, 0.90);
 
 	this.chart.select("rect.box").transition().duration(1000)
-		.attr("x", x(quartiles[0]))
-		.attr("y", 0)
-		.attr("width", x(quartiles[2] - quartiles[0] - 0.25))
-		.attr("height", 50);
+		.attr({
+			x: x(quartiles[0]),
+			y: 0,
+			width: x(quartiles[2] - quartiles[0] - 0.25),
+			height: 50,
+		});
 	this.chart.select("line.median").transition().duration(1000)
-		.attr("x1", x(quartiles[1]))
-		.attr("y1", -4)
-		.attr("x2", x(quartiles[1]))
-		.attr("y2", 54)
+		.attr({
+			x1: x(quartiles[1]),
+			y1: -5,
+			x2: x(quartiles[1]),
+			y2: 55,
+		});
 	this.chart.select("line.whisker.left").transition().duration(1000)
 		.attr({
-			x1: x(quartiles[0] - whisker),
+			x1: x(whisker_left),
 			y1: 25,
 			x2: x(quartiles[0]),
 			y2: 25,
 		});
 	this.chart.select("line.whisker-end.left").transition().duration(1000)
 		.attr({
-			x1: x(quartiles[0] - whisker),
+			x1: x(whisker_left),
 			y1: 12.5,
-			x2: x(quartiles[0] - whisker),
+			x2: x(whisker_left),
 			y2: 37.5,
 		});
 	this.chart.select("line.whisker.right").transition().duration(1000)
 		.attr({
-			x1: x(quartiles[2]),
+			x1: x(whisker_right),
 			y1: 25,
-			x2: x(quartiles[2] + whisker),
+			x2: x(quartiles[2]),
 			y2: 25,
 		});
 	this.chart.select("line.whisker-end.right").transition().duration(1000)
 		.attr({
-			x1: x(quartiles[2] + whisker),
+			x1: x(whisker_right),
 			y1: 12.5,
-			x2: x(quartiles[2] + whisker),
+			x2: x(whisker_right),
 			y2: 37.5,
-		})
+		});
 };
 
 BarChart.prototype.line = function(lineData, yMax) {
@@ -208,15 +214,14 @@ BarChart.prototype.line = function(lineData, yMax) {
 	yMax = yMax !== undefined ? yMax : d3.max(lineData, function(d) { return d[1]; });
 
 	var x = d3.scale.linear().domain([-0.25, 10.25]).range([0, width]);
-	var y = d3.scale.linear().domain([0, yMax]).range([height, height*0.25]);
+	var y = d3.scale.linear().domain([0, yMax]).range([height, 0]);
 
 	var line = d3.svg.line()
 		.x(function(d) { return x(d[0]); })
-		.y(function(d) { return y(d[1]); });
+		.y(function(d) { return y(d[1]*2); });
 
 	this.chart.select(".bestfit").select("path").datum(lineData).attr("d", line);
-
-}
+};
 
 BarChart.prototype.bars = function(barData) {
 
@@ -251,7 +256,7 @@ function read_file(file) {
 	});
 }
 
-$(function() { setTimeout(function() {
+$(function() {
 
 	var graph = new BarChart($("svg")[0]);
 
@@ -277,20 +282,20 @@ $(function() { setTimeout(function() {
 					throw new Error("Unrecognized type " + file.type);
 			}
 
-			var grades = gradeDict.map(function(d) { return +d.nota; }).sort(d3.ascending);
+			var grades = gradeDict.map(function(d) { return parseFloat(d.nota); }).sort(d3.ascending);
 			var info = analyze_grades(grades);
 
 			populate_table(grades, info);
 
 			graph.domain(d3.max(info.histogram, function(d) { return d.freq; }));
 			graph.bars(info.histogram);
-			graph.line(info.gaussian);
-			graph.box(info.quartiles, info.n);
+			graph.line(info.gaussian, 1);
+			graph.box(info);
 
 		});
 	});
 
-}, 10) });
+});
 
 
 
@@ -309,3 +314,5 @@ $(function() { setTimeout(function() {
 
 //	});
 // });
+
+})(); // use strict
